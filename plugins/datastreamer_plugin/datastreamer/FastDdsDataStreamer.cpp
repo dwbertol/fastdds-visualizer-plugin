@@ -173,9 +173,13 @@ void FastDdsDataStreamer::on_double_data_read(
         DEBUG("Adding to numeric series " << data.first << " value " << data.second << " with timestamp " << timestamp);
 
         // Get data map
-        auto& series = dataMap().numeric.find(data.first)->second;
+        auto series = dataMap().numeric.find(data.first);
+
+        if(series == dataMap().numeric.end())
+            continue;
+
         // Add data to series
-        series.pushBack( { timestamp, data.second});
+        series->second.pushBack( { timestamp, data.second});
     }
 
     emit dataReceived();
@@ -195,9 +199,13 @@ void FastDdsDataStreamer::on_string_data_read(
         DEBUG("Adding to string series " << data.first << " value " << data.second << " with timestamp " << timestamp);
 
         // Get data map
-        auto& series = dataMap().strings.find(data.first)->second;
+        auto series = dataMap().strings.find(data.first);
+
+        if(series == dataMap().strings.end())
+            continue;
+
         // Add data to series
-        series.pushBack( { timestamp, data.second});
+        series->second.pushBack( { timestamp, data.second});
     }
 
     emit dataReceived();
@@ -256,6 +264,7 @@ void FastDdsDataStreamer::connect_to_domain_(
 void FastDdsDataStreamer::create_series_()
 {
     // Get all series from topics and create them
+    std::lock_guard<std::mutex> lock(mutex());
     // NUMERIC
     std::vector<types::DatumLabel> numeric_series = fastdds_handler_.numeric_data_series_names();
     for (const auto& series : numeric_series)
