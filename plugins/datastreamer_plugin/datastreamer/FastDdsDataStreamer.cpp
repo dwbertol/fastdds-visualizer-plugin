@@ -96,6 +96,9 @@ bool FastDdsDataStreamer::start(
             configuration_.data_type_configuration);
     }
 
+    // Locking DataStream
+    std::lock_guard<std::mutex> lock(mutex());
+
     // Get all series from topics and create them
     // NUMERIC
     std::vector<types::DatumLabel> numeric_series = fastdds_handler_.numeric_data_series_names();
@@ -175,9 +178,11 @@ void FastDdsDataStreamer::on_double_data_read(
         DEBUG("Adding to numeric series " << data.first << " value " << data.second << " with timestamp " << timestamp);
 
         // Get data map
-        auto& series = dataMap().numeric.find(data.first)->second;
-        // Add data to series
-        series.pushBack( { timestamp, data.second});
+        auto series = dataMap().numeric.find(data.first);
+
+        if(series != dataMap().numeric.end())
+            // Add data to series
+            series->second.pushBack( { timestamp, data.second});
     }
 
     emit dataReceived();
@@ -197,9 +202,11 @@ void FastDdsDataStreamer::on_string_data_read(
         DEBUG("Adding to string series " << data.first << " value " << data.second << " with timestamp " << timestamp);
 
         // Get data map
-        auto& series = dataMap().strings.find(data.first)->second;
-        // Add data to series
-        series.pushBack( { timestamp, data.second});
+        auto series = dataMap().strings.find(data.first);
+
+        if(series != dataMap().strings.end())
+            // Add data to series
+            series->second.pushBack( { timestamp, data.second});
     }
 
     emit dataReceived();
