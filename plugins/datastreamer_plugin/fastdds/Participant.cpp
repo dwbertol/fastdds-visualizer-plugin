@@ -28,6 +28,7 @@
 #include "Participant.hpp"
 #include "utils/utils.hpp"
 #include "utils/Exception.hpp"
+#include "yaml-cpp/yaml.h"
 
 namespace eprosima {
 namespace plotjuggler {
@@ -68,11 +69,41 @@ Participant::Participant(
     , discovery_database_(discovery_database)
 {
     // TODO check entities are created correctly
+    eprosima::fastdds::dds::DomainParticipantQos participantQos = default_participant_qos_();
+
+    // Get server info from the yaml file
+    YAML::Node config;
+    try{
+        config = YAML::LoadFile("/usr/include/dls2/util/messaging/servers.yaml");
+    }
+    catch (const YAML::Exception& e)
+    {
+        std::cerr << "YOU HAVE TO INSTALL DLS2 BEFORE LISTENING TO TOPICS IN PLOTJUGGLER" << std::endl;
+        throw std::runtime_error(e.what());
+    }
+    std::string server_ip = config[domain_id]["ip"].as<std::string>();
+    int server_port = config[domain_id]["port"].as<double>();
+    std::string server_guid_prefix = config[domain_id]["guid_prefix"].as<std::string>();
+    DEBUG("server ip " <<server_ip << "\nserver port" << server_port << "\nserver guid" << server_guid_prefix << "\n");
+
+    // Define server locator
+    eprosima::fastrtps::rtps::Locator_t server_locator;
+    eprosima::fastrtps::rtps::IPLocator::setIPv4(server_locator, server_ip);
+    server_locator.port = server_port;
+    // -- Configure the current participant as CLIENT
+    participantQos.wire_protocol().builtin.discovery_config.discoveryProtocol = eprosima::fastrtps::rtps::DiscoveryProtocol_t::SUPER_CLIENT;
+    // -- Add the server locator in the metatraffic unicast locator list of the remote server attributes
+    eprosima::fastrtps::rtps::RemoteServerAttributes remote_server_attr;
+    remote_server_attr.metatrafficUnicastLocatorList.push_back(server_locator);
+    // -- Set the GUID prefix to identify the server
+    remote_server_attr.ReadguidPrefix(server_guid_prefix.c_str());
+    // -- Connect to the remote server
+    participantQos.wire_protocol().builtin.discovery_config.m_DiscoveryServers.push_back(remote_server_attr);
 
     // Create Domain Participant
     participant_ = eprosima::fastdds::dds::DomainParticipantFactory::get_instance()->create_participant(
         domain_id,
-        default_participant_qos_(),
+        participantQos,
         this,
         default_listener_mask_());
 
@@ -284,15 +315,15 @@ void Participant::on_type_discovery(
     //     return;
     // }
 
-    // DEBUG("TypeObject discovered: " << dyn_type->get_name() << " for topic: " << topic.to_string());
+    DEBUG("TypeObject discovered: " << dyn_type->get_name() << " for topic: " << topic.to_string());
 
     // Create TypeSupport and register it
-    // eprosima::fastdds::dds::TypeSupport(
-    //     new eprosima::fastrtps::types::DynamicPubSubType(dyn_type)).register_type(participant_);
+    eprosima::fastdds::dds::TypeSupport(
+        new eprosima::fastrtps::types::DynamicPubSubType(dyn_type)).register_type(participant_);
 
-    // // In case this callback is sent, it means that the type is already registered, so notify
-    // // TODO in future it would be better to update every topic in this type name, and not just the one calling here
-    // on_topic_discovery_(topic.to_string(), dyn_type->get_name());
+    // In case this callback is sent, it means that the type is already registered, so notify
+    // TODO in future it would be better to update every topic in this type name, and not just the one calling here
+    on_topic_discovery_(topic.to_string(), dyn_type->get_name());
 }
 
 ////////////////////////////////////////////////////
