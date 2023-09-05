@@ -270,23 +270,26 @@ void Participant::on_type_information_received(
         const fastrtps::string_255 type_name,
         const fastrtps::types::TypeInformation& type_information)
 {
-    DEBUG("Type Information received: " << type_name.to_string() << " in topic: " << topic_name.to_string());
+    // TODO DEBUG THIS FUNCTION
+    // This function is not working when using Discovery Server. The register_remote_type function does not call the callback and the dynamic type is not infered from the TypeInformation
 
-    // Prepare callback that will be executed after registering type
-    std::function<void(const std::string&, const eprosima::fastrtps::types::DynamicType_ptr)> callback(
-        [this, topic_name]
-            (const std::string&, const eprosima::fastrtps::types::DynamicType_ptr type)
-        {
-            DEBUG(
-                "Type discovered by lookup info: " << type->get_name() << " in topic: " << topic_name.to_string());
-            this->on_topic_discovery_(topic_name.to_string(), type->get_name());
-        });
+    // DEBUG("Type Information received: " << type_name.to_string() << " in topic: " << topic_name.to_string());
 
-    // Registering type and creating reader
-    participant_->register_remote_type(
-        type_information,
-        type_name.to_string(),
-        callback);
+    // // Prepare callback that will be executed after registering type
+    // std::function<void(const std::string&, const eprosima::fastrtps::types::DynamicType_ptr)> callback(
+    //     [this, topic_name]
+    //         (const std::string&, const eprosima::fastrtps::types::DynamicType_ptr type)
+    //     {
+    //         DEBUG(
+    //             "Type discovered by lookup info: " << type->get_name() << " in topic: " << topic_name.to_string());
+    //         this->on_topic_discovery_(topic_name.to_string(), type->get_name());
+    //     });
+
+    // // Registering type and creating reader
+    // participant_->register_remote_type(
+    //     type_information,
+    //     type_name.to_string(),
+    //     callback);
 }
 
 void Participant::on_type_discovery(
